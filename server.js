@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAllUrls, getLongUrl, shortenUrl } from './utils.js';
+import { getAllUrls, getClicks, getLongUrl, incrClicks, shortenUrl } from './utils.js';
 
 const app = express();
 
@@ -11,9 +11,19 @@ const domain = `http://${BASE_URL}:${PORT}`;
 app.use(express.json());
 
 app.get('/:code', async (req, res) => {
-  let originalUrl = await getLongUrl(req.params.code);
+  let shortCode = req.params.code;
+  console.log('HIT', shortCode);
+  let originalUrl = await getLongUrl(shortCode);
   if (originalUrl) {
-    return res.redirect(301, originalUrl);
+    await incrClicks(shortCode);
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      Pragma: 'no-cache',
+      Expires: '0',
+      'Surrogate-Control': 'no-store',
+    });
+
+    return res.redirect(302, originalUrl);
   }
   res.status(404).send('URL not found');
 });
@@ -48,6 +58,14 @@ app.get('/', async (req, res) => {
   let data = entries.map(item => `${domain}/${item[0]}`);
 
   res.json({ data: data });
+});
+
+app.get('/clicks/:code', async (req, res) => {
+  let shortCode = req.params.code;
+
+  let count = await getClicks(shortCode);
+  let clickCount = count ? parseInt(count, 10) : 0;
+  res.json({ shortCode, count: clickCount }).status(200);
 });
 
 app.listen(PORT, () => {

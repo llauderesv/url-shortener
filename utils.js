@@ -1,7 +1,7 @@
 import redis from './redis-client.js';
 
+const appKey = 'url_shortener';
 const urlIdCounterKey = 'url_id_counter';
-const hashKeyUrlId = 'url_shortener';
 
 function encodeBase62(num) {
   const charset = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -18,7 +18,7 @@ export async function shortenUrl(longUrl) {
     let id = await redis.incr(urlIdCounterKey);
     let shortCode = encodeBase62(id);
 
-    return await redis.hSet(hashKeyUrlId, shortCode, longUrl);
+    return await redis.hSet(appKey, shortCode, longUrl);
   } catch (err) {
     console.log('RedisError:', err);
   }
@@ -26,7 +26,7 @@ export async function shortenUrl(longUrl) {
 
 export async function getLongUrl(shortCode) {
   try {
-    return await redis.hGet(hashKeyUrlId, shortCode);
+    return await redis.hGet(appKey, shortCode);
   } catch (err) {
     console.log('RedisError:', err);
   }
@@ -34,7 +34,23 @@ export async function getLongUrl(shortCode) {
 
 export async function getAllUrls() {
   try {
-    return await redis.hGetAll(hashKeyUrlId);
+    return await redis.hGetAll(appKey);
+  } catch (err) {
+    console.log('RedisError:', err);
+  }
+}
+
+export async function incrClicks(shortCode) {
+  try {
+    return await redis.incr(`${appKey}_${shortCode}`);
+  } catch (err) {
+    console.log('RedisError:', err);
+  }
+}
+
+export async function getClicks(shortCode) {
+  try {
+    return await redis.get(`${appKey}_${shortCode}`);
   } catch (err) {
     console.log('RedisError:', err);
   }
