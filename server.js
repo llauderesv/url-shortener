@@ -1,5 +1,12 @@
 import express from 'express';
-import { getAllUrls, getClicks, getLongUrl, incrClicks, shortenUrl } from './utils.js';
+import {
+  getAllUrls,
+  getAndSetShortCodeIfNotExist,
+  getClicks,
+  getLongUrl,
+  incrClicks,
+  shortenUrl,
+} from './utils.js';
 
 const app = express();
 
@@ -29,20 +36,29 @@ app.get('/:code', async (req, res) => {
 });
 
 app.post('/shorten', async (req, res) => {
-  let url = req.body.url;
+  let { url, shortCode } = req.body;
   if (!url) {
     res.status(400).send('Invalid long URL format');
     return;
   }
 
-  let id = await shortenUrl(url);
-  if (!id || id < 1) {
-    res.send("Something wen't wrong in the server");
-    return;
+  if (!shortCode) {
+    const success = await shortenUrl(url);
+    if (!success) {
+      res.status(500).json({ message: 'Something went wrong in the server' });
+      return;
+    }
+  } else {
+    const success = await getAndSetShortCodeIfNotExist(shortCode, url);
+    if (!success) {
+      const message = `The short code '${shortCode}' provided is already used. Please use another short code.`;
+      res.status(400).json({ message });
+      return;
+    }
   }
 
   // Logic to shorten the URL and store it in Redis can be added here
-  res.send(`URL shortened successfully`).status(200);
+  res.status(200).json({ message: 'URL shortened successfully' });
 });
 
 app.get('/', async (req, res) => {
